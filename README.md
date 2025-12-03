@@ -59,6 +59,8 @@ The decryption result is written in the console.
 
 All the code related to the issue is in `src\app\home\home.page.ts`.
 
+---
+
 # ✅ Why the issue might not reproduce on the Android emulator
 
 It is absolutely possible that Identity-Vault’s AES/CBC bug appears only on real devices. In fact, **Pixel and Samsung phones are the two most common models where CBC decryption errors occur even when everything works fine on the emulator**.
@@ -118,6 +120,8 @@ On a real Pixel or Samsung, CryptoData.decrypt receives the malformed chunk exac
 
 So **the same bug does not trigger on the emulator** because the buffering behavior is different.
 
+---
+
 # Description of the Issue
 
 On Android, Identity-Vault fails to decrypt stored values when using the default AES-CBC-PKCS5 encryption. The failure is triggered with the exception:
@@ -128,7 +132,6 @@ javax.crypto.IllegalBlockSizeException: last block incomplete in decryption
 
 This bug occurs because the plugin processes ciphertext in arbitrary chunks using `cipher.update()` inside a loop. CBC mode cannot be safely decrypted with manually chunked ciphertext unless the chunk boundaries align perfectly with AES block boundaries (16 bytes). If they do not, Android’s crypto implementation throws the exception above.
 
----
 ## Where the Problem Occurs (Identity-Vault Android Code)
 
 Identity-Vault performs encryption/decryption using logic similar to:
@@ -147,7 +150,6 @@ byte[] finalBytes = cipher.doFinal();
 
 AES/CBC/PKCS5Padding **requires the full ciphertext stream** so padding and block chaining can be validated properly. Feeding fragmented ciphertext into `cipher.update()` breaks block alignment, causing padding to become invalid → resulting in `IllegalBlockSizeException` during decryption.
 
----
 
 ## Proposed Solution
 
@@ -179,13 +181,9 @@ byte[] decrypted = baos.toByteArray();
 - Prevents `IllegalBlockSizeException`
 - Compatible across all Android versions Identity-Vault supports
 
----
-
 ## Expected Outcome
 
 After replacing the chunked `cipher.update()` logic with `CipherInputStream`, stored credentials decrypt correctly on Android with no errors, and behavior matches iOS and Web implementations.
-
----
 
 ## Complete fix in `CryptoData.java`
 
