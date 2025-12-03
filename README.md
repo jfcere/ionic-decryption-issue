@@ -1,18 +1,17 @@
-# Reproduction Sample
 
-This is a reproduction sample of the issue with `Identity-Vault` where decrypting on Android sometimes throw `IllegalBlockSizeException`.
+This is a reproduction sample of the issue with `Identity-Vault` where decrypting on **Android 16 real devices – especially on Pixel and Samsung devices** – sometimes throw `IllegalBlockSizeException`.
 
 The issue occurs intermittently when decrypting, because manually chunking the ciphertext can sometimes break the 16-byte alignment, which triggers the `IllegalBlockSizeException`.
 
-## Table Of Content
+# 📑 Table Of Content
 
-- [Starting project](#starting-project)
-- [Project description](#project-description)
-- [Why the issue might not reproduce on the Android emulator](#-why-the-issue-might-not-reproduce-on-the-android-emulator)
-- [Description of the Issue](#description-of-the-issue)
-- [Proposed Solution](#proposed-solution)
+- [🔧 Starting Project](#-starting-project)
+- [📝 Project Description](#-project-description)
+- [📱 Why the issue might not reproduce on the Android emulator](#-why-the-issue-might-not-reproduce-on-the-android-emulator)
+- [🐞 Description of the Issue](#-description-of-the-issue)
+- [💡 Proposed Solution](#-proposed-solution)
 
-## Starting project
+# 🔧 Starting Project
 
 1. Create `.npmrc` file at the root of the project to include a registry for `@ionic-enterprise` packages and replace `ENTER_YOUR_TOKEN_HERE` with your Ionic access token
 
@@ -49,7 +48,7 @@ npx cap open android
 
 7. Open Logcat and use `package:mine` filter to see only the application sample logs and encryption/decryption result added to the console
 
-## Project description
+# 📝 Project Description
 
 The sample start a loop of randomly generated data that is encrypted within the `Vault` and then decrypted until the `IllegalBlockSizeException` is thrown.
 
@@ -59,9 +58,7 @@ The decryption result is written in the console.
 
 All the code related to the issue is in `src\app\home\home.page.ts`.
 
----
-
-# ✅ Why the issue might not reproduce on the Android emulator
+# 📱 Why the issue might not reproduce on the Android emulator
 
 It is absolutely possible that Identity-Vault’s AES/CBC bug appears only on real devices. In fact, **Pixel and Samsung phones are the two most common models where CBC decryption errors occur even when everything works fine on the emulator**.
 
@@ -120,9 +117,7 @@ On a real Pixel or Samsung, CryptoData.decrypt receives the malformed chunk exac
 
 So **the same bug does not trigger on the emulator** because the buffering behavior is different.
 
----
-
-# Description of the Issue
+# 🐞 Description of the Issue
 
 On Android, Identity-Vault fails to decrypt stored values when using the default AES-CBC-PKCS5 encryption. The failure is triggered with the exception:
 
@@ -146,16 +141,16 @@ while (inputOffset < data.length) {
 byte[] finalBytes = cipher.doFinal();
 ```
 
-### ❌ Why this is wrong
+## Why this is wrong
 
 AES/CBC/PKCS5Padding **requires the full ciphertext stream** so padding and block chaining can be validated properly. Feeding fragmented ciphertext into `cipher.update()` breaks block alignment, causing padding to become invalid → resulting in `IllegalBlockSizeException` during decryption.
 
 
-## Proposed Solution
+# 💡 Proposed Solution
 
 Replace the manual chunked loop with a `CipherInputStream`, which fully supports CBC, PKCS padding, and arbitrary ciphertext lengths without alignment issues.
 
-### ✔ Correct CBC-Safe Implementation
+## Correct CBC-Safe Implementation
 
 ```java
 Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
@@ -174,14 +169,14 @@ while ((n = cis.read(buffer)) != -1) {
 byte[] decrypted = baos.toByteArray();
 ```
 
-### ✔ Why this works
+## Why this works
 - Ensures AES block alignment automatically
 - Correctly handles PKCS padding
 - Works with any ciphertext size, chunked or continuous
 - Prevents `IllegalBlockSizeException`
 - Compatible across all Android versions Identity-Vault supports
 
-## Expected Outcome
+# Expected Outcome
 
 After replacing the chunked `cipher.update()` logic with `CipherInputStream`, stored credentials decrypt correctly on Android with no errors, and behavior matches iOS and Web implementations.
 
@@ -189,7 +184,7 @@ After replacing the chunked `cipher.update()` logic with `CipherInputStream`, st
 
 Below is a corrected implementation of `encrypt` and `decrypt` that we tested and fixed the issue using `CipherInputStream` and `CipherOutputStream`, which are safe for CBC and PKCS padding.
 
-### ✔ Corrected `encrypt` method
+## Corrected `encrypt` method
 
 ```java
 public static String encrypt(String alias, String dataJsonString, String customPasscode, Context context)
@@ -220,7 +215,7 @@ public static String encrypt(String alias, String dataJsonString, String customP
 }
 ```
 
-### ✔ Corrected `decrypt` method
+## Corrected `decrypt` method
 
 ```java
 public static String decrypt(String alias, String encryptedDataJson, String customPasscode, Context context)
