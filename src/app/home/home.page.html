@@ -1,0 +1,25 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>
+      Blank
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">Blank</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <div id="container">
+    <strong>Identity-Vault Decryption Issue</strong>
+
+    <p>The issue occurs intermittently when decrypting, manually chunking the ciphertext can sometimes break the 16-byte alignment, which triggers the <code>IllegalBlockSizeException</code></p>
+
+    <ion-button (click)="toggleDecryptionLoop()">
+      {{ isLooping ? 'Stop Decryption Loop' : 'Start Decryption Loop' }}
+    </ion-button>
+  </div>
+</ion-content>
