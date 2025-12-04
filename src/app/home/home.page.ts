@@ -30,7 +30,7 @@ export class HomePage {
   isLooping = false;
 
   constructor(
-    readonly _platform: Platform,
+    private readonly _platform: Platform,
   ) { }
 
   async toggleDecryptionLoop(): Promise<void> {
@@ -71,18 +71,18 @@ export class HomePage {
 
     // Create a JSON payload similar to what Identity-Vault actually encrypts.
     // This includes nested JSON and unpredictable content.
-    const payload = {
+   const payload = {
       timestamp: Date.now(),
       device: "Pixel/Samsung CBC Test",
       random: this._randomBinaryString(randomSize) // HIGH ENTROPY data
     };
 
-    // Convert to JSON
+    // Convert to JSON to get size in KB
     const json = JSON.stringify(payload);
     const jsonSizeKB = (json.length / 1024).toFixed(2);
 
     // Write data to the vault
-    await this._vault.setValue(this._VALUE_KEY, json);
+    await this._vault.setValue(this._VALUE_KEY, payload);
 
     try {
       // Read and decrypt the data from the vault
