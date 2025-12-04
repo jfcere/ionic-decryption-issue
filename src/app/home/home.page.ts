@@ -64,27 +64,48 @@ export class HomePage {
 
   private async _encryptAndDecryptData(): Promise<void> {
     // Generate random data size between 8KB and 24KB
-    const minSize = 1024 * 8; // 8KB
+    // Larger, high-entropy payloads are more likely to break CBC when chunked.
+    const minSize = 1024 * 8;  // 8KB
     const maxSize = 1024 * 24; // 24KB
     const randomSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
-    
-    // Generate random data with the calculated size
-    const dataValue = 'A'.repeat(randomSize);
-    const dataSizeKB = (randomSize / 1024).toFixed(2);
+
+    // Create a JSON payload similar to what Identity-Vault actually encrypts.
+    // This includes nested JSON and unpredictable content.
+    const payload = {
+      timestamp: Date.now(),
+      device: "Pixel/Samsung CBC Test",
+      random: this._randomBinaryString(randomSize) // HIGH ENTROPY data
+    };
+
+    // Convert to JSON
+    const json = JSON.stringify(payload);
+    const jsonSizeKB = (json.length / 1024).toFixed(2);
 
     // Write data to the vault
-    await this._vault.setValue(this._VALUE_KEY, dataValue);
+    await this._vault.setValue(this._VALUE_KEY, json);
 
     try {
       // Read and decrypt the data from the vault
       await this._vault.getValue(this._VALUE_KEY);
-      console.log(`📦 Generated data size: ${dataSizeKB} KB`);
-      console.log('✅ Decrypted Data Successfully');
+
+      // Logs for success case
+      console.log(`📦 Generated JSON size: ${jsonSizeKB} KB`);
+      console.log("✅ Decrypted Data Successfully");
     } catch (error) {
       // Log decryption errors
       const typedError = error instanceof Error ? error : new Error(JSON.stringify(error));
-      console.log(`📦 Generated data size: ${dataSizeKB} KB`);
-      console.error('❌ Decryption Error:', typedError.toString());
+
+      console.log(`📦 Generated JSON size: ${jsonSizeKB} KB`);
+      console.error("❌ Decryption Error:", typedError.toString());
     }
+  }
+
+  private _randomBinaryString(size: number): string {
+    // Generate a random base64-like string using true random bytes.
+    // This is IMPORTANT because "A".repeat(...) does not create enough entropy
+    // to trigger AES-CBC chunk-boundary failures on hardware-backed keystores.
+    const bytes = new Uint8Array(size);
+    crypto.getRandomValues(bytes); // Real random bytes
+    return btoa(String.fromCharCode(...bytes)); // Convert to base64 string
   }
 }
