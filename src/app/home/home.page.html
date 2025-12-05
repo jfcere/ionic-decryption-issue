@@ -1,25 +1,31 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-title>
-      Blank
+      Decryption Issue
     </ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  <p class="intro">
+    Follow theses steps to reproduce the issue where <code>IllegalBlockSizeException</code> is thrown during decryption.
+  </p>
 
-  <div id="container">
-    <strong>Identity-Vault Decryption Issue</strong>
+  <ol class="steps">
+    <li>Click "Encrypt/Decrypt Data" button</li>
+    <li>The app will successfully encrypt and decrypt the data</li>
+    <li>Kill the app and restart it on the phone <b>(not using run in Android Studio)</b></li>
+    <li>Click "Encrypt/Decrypt Data" button</li>
+    <li>On the first decryption, you should see <code>IllegalBlockSizeException</code> error</li>
+  </ol>
 
-    <p>The issue occurs intermittently when decrypting, manually chunking the ciphertext can sometimes break the 16-byte alignment, which triggers the <code>IllegalBlockSizeException</code></p>
+  <ion-button
+    class="start-button"
+    [disabled]="isProcessing"
+    (click)="startProcess()"
+  >
+    Encrypt/Decrypt Data
+  </ion-button>
 
-    <ion-button (click)="toggleDecryptionLoop()">
-      {{ isLooping ? 'Stop Decryption Loop' : 'Start Decryption Loop' }}
-    </ion-button>
-  </div>
+  <pre class="scroll-snap"><code>{{ log }}</code></pre>
 </ion-content>

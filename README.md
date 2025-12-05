@@ -1,7 +1,7 @@
 
 This is a reproduction sample of the issue with `Identity-Vault` where decrypting on **Android 16 real devices – especially on Pixel and Samsung devices** – sometimes throw `IllegalBlockSizeException`.
 
-The issue occurs intermittently when decrypting, because manually chunking the ciphertext can sometimes break the 16-byte alignment, which triggers the `IllegalBlockSizeException`.
+The issue occurs is hard to reproduce, because manually chunking the ciphertext can sometimes break the 16-byte alignment, which triggers the `IllegalBlockSizeException`.
 
 # 📑 Table Of Content
 
@@ -44,19 +44,33 @@ npx cap sync
 npx cap open android
 ```
 
-6. Select **a physical device with Android 16** and click `Run`
+6. Select **a Pixel or Samsung device with Android 16** and click `Run`
 
 7. Open Logcat and use `package:mine` filter to see only the application sample logs and encryption/decryption result added to the console
 
 # 📝 Project Description
 
-The sample start a loop of randomly generated data that is encrypted within the `Vault` and then decrypted until the `IllegalBlockSizeException` is thrown.
+The reproduction sample uses a fake payload to be encrypted within the `Vault` and then decrypted.
 
-To start or stop the encryption/decryption loop use the button.
+## Reproduction steps
 
-The decryption result is written in the console.
+Follow theses steps to reproduce the issue where `IllegalBlockSizeException`
+1. Click "Encrypt/Decrypt Data" button
+2. The app will successfully encrypt and decrypt the data
+3. Kill the app and restart it on the phone **(not using run in Android Studio)**
+4. Click "Encrypt/Decrypt Data" button
+5. On the first decryption, you should see `IllegalBlockSizeException` error
 
 All the code related to the issue is in `src\app\home\home.page.ts`.
+
+## Try the fix
+
+Now in Android Studio, find and open the `CryptoData.java` file located in `android/capacitor-cordova-android-plugins/src/main/java/com.ionicframework.IdentityVault` folder and replace the `encrypt` and `decrypt` methods with the one provided in the [proposed solution](#complete-fix-in-cryptodatajava).
+
+1. Clean the Android project with `build > clean project`
+2. Click "run" to start the application on the **Pixel or Samsung Android 16 device**
+3. Reexecute the [reproduction steps](## Reproduction steps) provided above
+4. You will notice that the `IllegalBlockSizeException` error is no longer thrown
 
 # 📱 Why the issue might not reproduce on the Android emulator
 
@@ -145,7 +159,6 @@ byte[] finalBytes = cipher.doFinal();
 
 AES/CBC/PKCS5Padding **requires the full ciphertext stream** so padding and block chaining can be validated properly. Feeding fragmented ciphertext into `cipher.update()` breaks block alignment, causing padding to become invalid → resulting in `IllegalBlockSizeException` during decryption.
 
-
 # 💡 Proposed Solution
 
 Replace the manual chunked loop with a `CipherInputStream`, which fully supports CBC, PKCS padding, and arbitrary ciphertext lengths without alignment issues.
@@ -193,22 +206,26 @@ public static String encrypt(String alias, String dataJsonString, String customP
         if (customPasscode != null) {
             dataJsonString = PasswordBasedCrypto.encrypt(customPasscode, dataJsonString);
         }
-
         SecretKey secretKey = getOrCreateKey(alias, context);
-
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        Cipher cipher = Cipher.getInstance(EncryptionConstants.AES_CBC_PADDED_TRANSFORM_ANDROID_M);
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
         byte[] iv = cipher.getIV();
+        byte[] dataBytes = dataJsonString.getBytes(StandardCharsets.UTF_8);
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        CipherOutputStream cos = new CipherOutputStream(baos, cipher);
-        cos.write(dataJsonString.getBytes(StandardCharsets.UTF_8));
-        cos.close();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        CipherOutputStream cipherOutputStream = new CipherOutputStream(outputStream, cipher);
 
-        byte[] encryptedBytes = baos.toByteArray();
+        cipherOutputStream.write(dataBytes);
+        cipherOutputStream.close(); // triggers doFinal()
+
+        byte[] encryptedBytes = outputStream.toByteArray();
+        outputStream.close();
 
         CryptoData cryptoData = CryptoData.create(encryptedBytes, iv, new byte[0]);
         return cryptoData.toJSON();
+    } catch (InvalidKeyException e) {
+        e.printStackTrace();
+        throw new UnexpectedKeystoreError(e.getLocalizedMessage());
     } catch (Exception e) {
         throw new VaultError("CryptoData.encrypt, " + e);
     }
@@ -223,29 +240,36 @@ public static String decrypt(String alias, String encryptedDataJson, String cust
     try {
         CryptoData cryptoData = CryptoData.create(encryptedDataJson);
         SecretKey secretKey = getOrCreateKey(alias, context);
-
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        Cipher cipher = Cipher.getInstance(EncryptionConstants.AES_CBC_PADDED_TRANSFORM_ANDROID_M);
         cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(cryptoData.iv));
 
-        ByteArrayInputStream bais = new ByteArrayInputStream(cryptoData.data);
-        CipherInputStream cis = new CipherInputStream(bais, cipher);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(cryptoData.data);
+        CipherInputStream cipherInputStream = new CipherInputStream(inputStream, cipher);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        byte[] buffer = new byte[2048];
-        int n;
-        while ((n = cis.read(buffer)) != -1) {
-            baos.write(buffer, 0, n);
+        byte[] buffer = new byte[4096];
+        int read;
+        while ((read = cipherInputStream.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, read);
         }
 
-        byte[] decryptedDataBytes = baos.toByteArray();
-        String decryptedDataJson = new String(decryptedDataBytes, StandardCharsets.UTF_8);
+        byte[] decryptedDataBytes = outputStream.toByteArray();
+        outputStream.close();
+        inputStream.close();
+        cipherInputStream.close();
 
+        String decryptedDataJson = new String(decryptedDataBytes, StandardCharsets.UTF_8);
         if (customPasscode != null) {
             CryptoData encryptedPasscodeData = CryptoData.create(decryptedDataJson);
             decryptedDataJson = PasswordBasedCrypto.decrypt(customPasscode, encryptedPasscodeData);
         }
-
         return decryptedDataJson;
+    } catch (InvalidKeyException e) {
+        e.printStackTrace();
+        throw new UnexpectedKeystoreError(e.getLocalizedMessage());
+    } catch (JSONException e) {
+        e.printStackTrace();
+        throw e;
     } catch (Exception e) {
         throw new VaultError("CryptoData.decrypt, " + e);
     }
