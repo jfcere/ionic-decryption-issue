@@ -69,7 +69,7 @@ Now in Android Studio, find and open the `CryptoData.java` file located in `andr
 
 1. Clean the Android project with `build > clean project`
 2. Click "run" to start the application on the **Pixel or Samsung Android 16 device**
-3. Reexecute the [reproduction steps](## Reproduction steps) provided above
+3. Reexecute the [reproduction steps](#reproduction-steps) provided above
 4. You will notice that the `IllegalBlockSizeException` error is no longer thrown
 
 # 📱 Why the issue might not reproduce on the Android emulator
