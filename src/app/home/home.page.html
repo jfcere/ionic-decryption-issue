@@ -13,11 +13,11 @@
 
   <ol class="steps">
     <li>Click "Decrypt/Encrypt Data" button</li>
-    <li>The app will successfully decrypt value from the vault and encrypt the data</li>
-    <li>Kill the app and restart it on the phone <b>(not using run in Android Studio)</b></li>
-    <li>Click "Decrypt/Encrypt Data" button</li>
-    <li>On the first decryption, you should see <code>IllegalBlockSizeException</code> error</li>
-    <li>Kill the app again and retry, it will still throw the error</li>
+    <li>The app will successfully decrypt the value from the vault and encrypt the data</li>
+    <li>Kill the app and restart it on the phone <b>(do not use Android Studio’s Run command for this restart)</b></li>
+    <li>Click "Decrypt/Encrypt Data" button again</li>
+    <li>On the first decryption, you should see the <code>IllegalBlockSizeException</code> error</li>
+    <li>Kill the app and retry; the error will persist</li>
   </ol>
 
   <ion-button

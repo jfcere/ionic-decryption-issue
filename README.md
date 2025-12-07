@@ -1,152 +1,158 @@
+This is a reproduction sample demonstrating an issue with `Identity-Vault` where decrypting on **real Android 16 devices — especially Pixel and Samsung models —** sometimes throws an `IllegalBlockSizeException`.
 
-This is a reproduction sample of the issue with `Identity-Vault` where decrypting on **Android 16 real devices – especially on Pixel and Samsung devices** – sometimes throw `IllegalBlockSizeException`.
+The issue is difficult to reproduce because it requires generating data such that a cut falls exactly in the middle of a 16-byte AES block. When this boundary is broken, the block alignment is disrupted, triggering the `IllegalBlockSizeException`.
 
-The issue occurs is hard to reproduce, because manually chunking the ciphertext can sometimes break the 16-byte alignment, which triggers the `IllegalBlockSizeException`.
+# 📑 Table of Contents
 
-# 📑 Table Of Content
-
-- [🔧 Starting Project](#-starting-project)
+- [🔧 Starting the Project](#-starting-the-project)
 - [📝 Project Description](#-project-description)
-- [📱 Why the issue might not reproduce on the Android emulator](#-why-the-issue-might-not-reproduce-on-the-android-emulator)
+- [📱 Why the Issue Might Not Reproduce on the Android Emulator](#-why-the-issue-might-not-reproduce-on-the-android-emulator)
 - [🐞 Description of the Issue](#-description-of-the-issue)
 - [💡 Proposed Solution](#-proposed-solution)
 
-# 🔧 Starting Project
+# 🔧 Starting the Project
 
-1. Create `.npmrc` file at the root of the project to include a registry for `@ionic-enterprise` packages and replace `ENTER_YOUR_TOKEN_HERE` with your Ionic access token
+1. Create a `.npmrc` file at the root of the project to include the registry for `@ionic-enterprise` packages, replacing `ENTER_YOUR_TOKEN_HERE` with your Ionic access token:
 
-```
-@ionic-enterprise:registry=https://registry.ionicframework.com/
-//registry.ionicframework.com/:_authToken=ENTER_YOUR_TOKEN_HERE
-```
+    ```ini
+    @ionic-enterprise:registry=https://registry.ionicframework.com/
+    //registry.ionicframework.com/:_authToken=ENTER_YOUR_TOKEN_HERE
+    ```
 
-2. Install dependencies
+2. Install dependencies:
 
-```bash
-npm install
-```
+    ```bash
+    npm install
+    ```
 
-3. Build ionic
+3. Build Ionic:
 
-```bash
-npx ionic build
-```
+    ```bash
+    npx ionic build
+    ```
 
-4. Sync capacitor
+4. Sync Capacitor:
 
-```bash
-npx cap sync
-```
+    ```bash
+    npx cap sync
+    ```
 
-5. Open the project in Android Studio
+5. Open the project in Android Studio:
 
-```bash
-npx cap open android
-```
+    ```bash
+    npx cap open android
+    ```
 
-6. Select **a Pixel or Samsung device with Android 16** and click `Run`
+6. Select **a Pixel or Samsung device running Android 16** and click `Run`.
 
-7. Open Logcat and use `package:mine` filter to see only the application sample logs and encryption/decryption result added to the console
+7. Open Logcat and apply the `package:mine` filter to see only application logs and encryption/decryption results.
 
 # 📝 Project Description
 
-The reproduction sample uses fake data to be encrypted in the `Vault` and then decrypted.
+This reproduction sample uses fake data encrypted in the `Vault` and then decrypted.
 
-## Reproduction steps
+## Reproduction Steps
 
-Follow theses steps to reproduce the issue where `IllegalBlockSizeException`
-1. Click "Decrypt/Encrypt Data" button
-2. The app will successfully decrypt value from the vault and encrypt the data
-3. Kill the app and restart it on the phone **(not using run in Android Studio)**
-4. Click "Decrypt/Encrypt Data" button
-5. On the first decryption, you should see `IllegalBlockSizeException` error
-6. Kill the app again and retry, it will still throw the error
+Follow these steps to reproduce the `IllegalBlockSizeException`:
+
+1. Click the **"Decrypt/Encrypt Data"** button.
+2. The app will successfully decrypt the value from the vault and encrypt the data.
+3. Kill the app and restart it on the phone **(do not use Android Studio’s Run command for this restart).**
+4. Click the **"Decrypt/Encrypt Data"** button again.
+5. On the first decryption after restart, you should see the `IllegalBlockSizeException` error.
+6. Kill the app and retry; the error will persist.
 
 ![Error Snapshot](imgs/error-snapshot.png)
 
-All the code related to the issue is in `src\app\home\home.page.ts`.
+All relevant code related to the issue is located in `src/app/home/home.page.ts`.
 
-## Try the fix
+## Try the Fix
 
-Now in Android Studio, find and open the `CryptoData.java` file located in `android/capacitor-cordova-android-plugins/src/main/java/com.ionicframework.IdentityVault` folder and replace the `encrypt` and `decrypt` methods with the one provided in the [proposed solution](#complete-fix-in-cryptodatajava).
-
-1. Clean the Android project with `build > clean project`
-2. Click "run" to start the application on the **Pixel or Samsung Android 16 device**
-3. Reexecute the [reproduction steps](#reproduction-steps) provided above
-4. You will notice that the `IllegalBlockSizeException` error is no longer thrown
-
-# 📱 Why the issue might not reproduce on the Android emulator
-
-It is absolutely possible that Identity-Vault’s AES/CBC bug appears only on real devices. In fact, **Pixel and Samsung phones are the two most common models where CBC decryption errors occur even when everything works fine on the emulator**.
-
-Here’s why...
-
-## 1. Pixel devices use strict BoringSSL crypto
-
-Google Pixel devices ship with a hardened version of BoringSSL, and their AES/CBC implementation is much more strict about:
-
-- block alignment
-- leftover bytes
-- incorrect padding
-- truncated ciphertext
-
-If decryption receives even one incomplete CBC block because of chunking, Pixel phones will immediately throw:
+In Android Studio, open the `CryptoData.java` file at:
 
 ```
+android/capacitor-cordova-android-plugins/src/main/java/com/ionicframework/IdentityVault
+```
+
+Replace the `encrypt` and `decrypt` methods with the ones provided in the [Proposed Solution](#complete-fix-in-cryptodatajava).
+
+1. Clean the Android project via `Build > Clean Project`.
+2. Click **Run** on a **Pixel or Samsung Android 16 device**.
+3. Repeat the [reproduction steps](#reproduction-steps).
+4. The `IllegalBlockSizeException` error should no longer occur.
+
+# 📱 Why the Issue Might Not Reproduce on the Android Emulator
+
+It is possible that Identity-Vault’s AES/CBC bug appears **only on real devices**. Pixel and Samsung phones are the two most common models where CBC decryption errors occur, while the emulator often works fine.
+
+Here’s why:
+
+### 1. Pixel Devices Use Strict BoringSSL Crypto
+
+Google Pixel devices ship with a hardened version of BoringSSL, whose AES/CBC implementation is stricter about:
+
+- Block alignment
+- Leftover bytes
+- Incorrect padding
+- Truncated ciphertext
+
+If decryption receives even one incomplete CBC block because of chunking, Pixel phones immediately throw:
+
+``` 
 javax.crypto.IllegalBlockSizeException
 javax.crypto.BadPaddingException
 error:1e000065:Cipher routines::BAD_DECRYPT
 ```
 
-The emulator, however, often uses a more permissive desktop OpenSSL implementation or a non-hardware provider.
+The emulator often uses a more permissive desktop OpenSSL implementation or a software provider.
 
-## 2. Samsung devices use hardware-backed AES engines
+### 2. Samsung Devices Use Hardware-Backed AES Engines
 
-Samsung ships custom hardware crypto stacks (TrustZone-backed), which behave differently from standard Android JCA providers.
+Samsung devices use custom hardware crypto stacks (TrustZone-backed), which behave differently from standard Android JCA providers. Samsung AES/CBC engines:
 
-Samsung AES/CBC engines:
-- require full 16-byte blocks
-- reject any malformed ciphertext strictly
-- perform padding verification in hardware
-- flush buffers differently than the emulator
+- Require full 16-byte blocks
+- Strictly reject malformed ciphertext
+- Perform padding verification in hardware
+- Flush buffers differently than the emulator
 
-If the app decrypts CBC data in small chunks (like in the Identity-Vault implementation), Samsung devices are much more likely to fail.
+If CBC data is decrypted in small chunks (like Identity-Vault’s implementation), Samsung devices are more likely to fail.
 
-This is exactly why many CBC bugs appear only on Samsung Galaxy devices.
+This explains why many CBC bugs appear only on Samsung Galaxy devices.
 
-## 3. Emulators do not use hardware crypto at all
+### 3. Emulators Do Not Use Hardware Crypto
 
 Android emulators:
-- run x86 software crypto
-- often rely on the host machine’s OpenSSL
-- do not use TEE / Secure Hardware
-- behave differently with CipherInputStream and padding
 
-This means an emulator may accidentally “fix” your chunks by reading data in larger, more convenient buffer sizes, so the error never appears.
+- Run x86 software crypto
+- Use host machine’s OpenSSL
+- Do not use TEE / Secure Hardware
+- Behave differently with `CipherInputStream` and padding
 
-On a real Pixel or Samsung, CryptoData.decrypt receives the malformed chunk exactly as produced — and fails.
+This means an emulator may “fix” your chunking by reading data in larger buffers, so errors don’t appear.
 
-## 4. Pixels and Samsungs handle input buffering differently
+On real devices, the malformed chunk is received exactly as produced, causing failure.
+
+### 4. Pixels and Samsungs Handle Input Buffering Differently
 
 - Pixel: BoringSSL CBC eagerly validates blocks
 - Samsung: TrustZone CBC validates padding after each block
 - Emulator: JCA implementation buffers more data before decrypting
 
-So **the same bug does not trigger on the emulator** because the buffering behavior is different.
+Thus, **the same bug does not trigger on the emulator** due to differences in buffering.
 
 # 🐞 Description of the Issue
 
-On Android, Identity-Vault fails to decrypt stored values when using the default AES-CBC-PKCS5 encryption. The failure is triggered with the exception:
+On Android, Identity-Vault fails to decrypt stored values using the default AES-CBC-PKCS5 encryption. The failure triggers the exception:
 
 ```
 javax.crypto.IllegalBlockSizeException: last block incomplete in decryption
 ```
 
-This bug occurs because the plugin processes ciphertext in arbitrary chunks using `cipher.update()` inside a loop. CBC mode cannot be safely decrypted with manually chunked ciphertext unless the chunk boundaries align perfectly with AES block boundaries (16 bytes). If they do not, Android’s crypto implementation throws the exception above.
+This occurs because the plugin processes ciphertext in arbitrary chunks via `cipher.update()` inside a loop. CBC mode requires ciphertext to be decrypted with proper block alignment; chunk boundaries must align with 16-byte AES blocks. If not, Android’s crypto throws the exception.
 
 ## Where the Problem Occurs (Identity-Vault Android Code)
 
-Identity-Vault performs encryption/decryption using logic similar to:
+Identity-Vault uses logic similar to:
 
 ```java
 while (inputOffset < data.length) {
@@ -158,13 +164,13 @@ while (inputOffset < data.length) {
 byte[] finalBytes = cipher.doFinal();
 ```
 
-## Why this is wrong
+## Why This Is Wrong
 
-AES/CBC/PKCS5Padding **requires the full ciphertext stream** so padding and block chaining can be validated properly. Feeding fragmented ciphertext into `cipher.update()` breaks block alignment, causing padding to become invalid → resulting in `IllegalBlockSizeException` during decryption.
+AES/CBC/PKCS5Padding requires the full ciphertext stream so that padding and chaining can be validated properly. Fragmented ciphertext breaks alignment, invalidates padding, and results in `IllegalBlockSizeException`.
 
 # 💡 Proposed Solution
 
-Replace the manual chunked loop with a `CipherInputStream`, which fully supports CBC, PKCS padding, and arbitrary ciphertext lengths without alignment issues.
+Replace the manual chunked loop with a `CipherInputStream`, which supports CBC, PKCS padding, and arbitrary ciphertext lengths without alignment issues.
 
 ## Correct CBC-Safe Implementation
 
@@ -185,20 +191,21 @@ while ((n = cis.read(buffer)) != -1) {
 byte[] decrypted = baos.toByteArray();
 ```
 
-## Why this works
+### Why This Works
+
 - Ensures AES block alignment automatically
 - Correctly handles PKCS padding
 - Works with any ciphertext size, chunked or continuous
 - Prevents `IllegalBlockSizeException`
-- Compatible across all Android versions Identity-Vault supports
+- Compatible across all supported Android versions
 
 # Expected Outcome
 
-After replacing the chunked `cipher.update()` logic with `CipherInputStream`, stored credentials decrypt correctly on Android with no errors, and behavior matches iOS and Web implementations.
+After replacing the chunked `cipher.update()` logic with `CipherInputStream`, stored credentials decrypt correctly on Android without errors, matching iOS and Web behavior.
 
-## Complete fix in `CryptoData.java`
+# Complete Fix in `CryptoData.java`
 
-Below is a corrected implementation of `encrypt` and `decrypt` that we tested and fixed the issue using `CipherInputStream` and `CipherOutputStream`, which are safe for CBC and PKCS padding.
+Below is the corrected implementation of the `encrypt` and `decrypt` methods using `CipherInputStream` and `CipherOutputStream` for CBC with PKCS padding.
 
 ## Corrected `encrypt` method
 
