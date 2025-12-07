@@ -50,16 +50,19 @@ npx cap open android
 
 # 📝 Project Description
 
-The reproduction sample uses a fake payload to be encrypted within the `Vault` and then decrypted.
+The reproduction sample uses fake data to be encrypted in the `Vault` and then decrypted.
 
 ## Reproduction steps
 
 Follow theses steps to reproduce the issue where `IllegalBlockSizeException`
-1. Click "Encrypt/Decrypt Data" button
-2. The app will successfully encrypt and decrypt the data
+1. Click "Decrypt/Encrypt Data" button
+2. The app will successfully decrypt value from the vault and encrypt the data
 3. Kill the app and restart it on the phone **(not using run in Android Studio)**
-4. Click "Encrypt/Decrypt Data" button
+4. Click "Decrypt/Encrypt Data" button
 5. On the first decryption, you should see `IllegalBlockSizeException` error
+6. Kill the app again and retry, it will still throw the error
+
+![Error Snapshot](imgs/error-snapshot.png)
 
 All the code related to the issue is in `src\app\home\home.page.ts`.
 

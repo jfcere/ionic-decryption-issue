@@ -12,11 +12,12 @@
   </p>
 
   <ol class="steps">
-    <li>Click "Encrypt/Decrypt Data" button</li>
-    <li>The app will successfully encrypt and decrypt the data</li>
+    <li>Click "Decrypt/Encrypt Data" button</li>
+    <li>The app will successfully decrypt value from the vault and encrypt the data</li>
     <li>Kill the app and restart it on the phone <b>(not using run in Android Studio)</b></li>
-    <li>Click "Encrypt/Decrypt Data" button</li>
+    <li>Click "Decrypt/Encrypt Data" button</li>
     <li>On the first decryption, you should see <code>IllegalBlockSizeException</code> error</li>
+    <li>Kill the app again and retry, it will still throw the error</li>
   </ol>
 
   <ion-button
@@ -24,7 +25,7 @@
     [disabled]="isProcessing"
     (click)="startProcess()"
   >
-    Encrypt/Decrypt Data
+    Decrypt/Encrypt Data
   </ion-button>
 
   <pre class="scroll-snap"><code>{{ log }}</code></pre>

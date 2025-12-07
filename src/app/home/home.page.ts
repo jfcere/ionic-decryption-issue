@@ -46,18 +46,6 @@ export class HomePage {
     }
 
     try {
-      // Write data to the vault
-      await this._vault.setValue(this._VALUE_KEY, data);
-
-      // Log encryption success
-      this._log("✅ Encrypted Data Successfully", 'info');
-    } catch (error) {
-      // Log encryption errors
-      const typedError = error instanceof Error ? error : new Error(JSON.stringify(error));
-      this._log("❌ Encryption Error: " + typedError.toString(), 'error');
-    }
-
-    try {
       // Read and decrypt the data from the vault
       await this._vault.getValue(this._VALUE_KEY);
 
@@ -67,6 +55,18 @@ export class HomePage {
       // Log decryption errors
       const typedError = error instanceof Error ? error : new Error(JSON.stringify(error));
       this._log("❌ Decryption Error: " + typedError.toString(), 'error');
+    }
+
+    try {
+      // Write data to the vault
+      await this._vault.setValue(this._VALUE_KEY, data);
+
+      // Log encryption success
+      this._log("✅ Encrypted Data Successfully", 'info');
+    } catch (error) {
+      // Log encryption errors
+      const typedError = error instanceof Error ? error : new Error(JSON.stringify(error));
+      this._log("❌ Encryption Error: " + typedError.toString(), 'error');
     }
   }
 
